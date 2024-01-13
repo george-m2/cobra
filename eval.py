@@ -215,3 +215,4 @@ def check_end_game(board: chess.Board) -> bool:
                        board.piece_at(sq) and board.piece_at(sq).piece_type in [chess.BISHOP, chess.KNIGHT])
 
     return queens == 0 or (queens == 2 and minor_pieces <= 1)
+
