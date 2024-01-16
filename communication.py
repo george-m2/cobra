@@ -57,13 +57,15 @@ def communicate():
         board.push(move)
         print(board)
 
+        
         # Generate a move
         generated_move = movegen.next_move(depth, board)
-        board.push(generated_move)
+        san = board.san(generated_move)
+        board.push_san(san)
         print(board)
 
         # Send the generated move and evaluation score back to Unity
-        socket.send(f"{generated_move}".encode('utf-8'))
+        socket.send(f"{san}".encode('utf-8'))
 
 def get_depth_from_unity(file_path: str) -> int:
     """Reads the depth from the JSON specified by file_path. The depth int should be written to the file in the Chess.NET settings.
