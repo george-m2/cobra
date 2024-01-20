@@ -54,14 +54,25 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
 
     
 def communicate():
+    """
+    Function to handle communication between cobra/Chess.NET.
+
+    This function reads settings from a JSON file, initializes the chess board,
+    and listens for incoming PGN moves over a ZeroMQ socket.
+    It then generates a response move based on the received move and sends it back.
+
+    Returns:
+        None
+    """
     board = chess.Board()
-    settings = read_settings_file_from_JSON(get_unity_persistance_path())
+    settings = read_settings_file_from_JSON(get_unity_persistance_path()) #reads settings from Chess.NET in JSON file
     depth = settings["depth"]
     use_stockfish = settings["use_stockfish"]
 
-    context = zmq.Context()
+    # ZeroMQ socket setup
+    context = zmq.Context() 
     socket = context.socket(zmq.REP)
-    socket.bind("tcp://*:5555")
+    socket.bind("tcp://*:5555") #loopback
 
     if use_stockfish:
         stockfish_engine = init_stockfish()
@@ -69,7 +80,7 @@ def communicate():
     print(use_stockfish)
 
     while True:
-        san = socket.recv().decode('utf-8')
+        san = socket.recv().decode('utf-8') #receive move and normalise to utf-8
         print("Received PGN: %s" % san)
 
         move = board.parse_san(san)
@@ -80,7 +91,7 @@ def communicate():
             result = stockfish_engine.play(board, chess.engine.Limit(depth=depth)) #uses depth from JSON 
             generated_move = result.move
         else:
-            generated_move = movegen.next_move(depth, board)
+            generated_move = movegen.next_move(depth, board) #create move
 
         san = board.san(generated_move)
         board.push_san(san)
@@ -101,4 +112,14 @@ def get_depth_from_unity(file_path: str) -> int:
         config = json.load(f)
         return config["depth"]
 
+def standalone_cli_args():
+    """Command line arguments for standalone use (not being called by the Chess.NET process) cobra engine.
+
+    Returns:
+        ArgumentParser object: The parser object containing the command line arguments.
+    """
+    parser = argparse.ArgumentParser(description='cobra engine with minimax/alpha-beta pruning algorithm')
+    parser.add_argument('--depth', type=int, help='Depth of search')
+    parser.add_argument('--use-stockfish', action='store_true', help='Use Stockfish(NNUE) engine')
+    return parser.parse_args()
     
