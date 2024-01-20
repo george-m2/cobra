@@ -5,6 +5,8 @@ import argparse
 import json
 import platform
 import os
+import chess.engine
+from engines import init_stockfish
 
 def get_unity_persistance_path() -> str:
     """Gets the path to the Unity persistence file. Chess.NET's JSON settings file is stored at this path, which is platform dependent.
@@ -17,10 +19,10 @@ def get_unity_persistance_path() -> str:
     elif platform.system() == "Linux":
         return f"{os.getenv('HOME')}/.config/unity3d/DefaultCompany/Chess.NET/settings.json"
     elif platform.system() == "Darwin": # macOS
-        return f"{os.getenv('HOME')}/Library/Application Support/unity.DefaultCompany.Chess.NET/settings.json"
+        return f"{os.getenv('HOME')}/Library/Application Support/DefaultCompany/Chess_NET/settings.json"
     
 def read_settings_file_from_JSON(file_path: str) -> dict:
-    """Reads the JSON file specified by file_path.
+    """Reads the Unity settings file from JSON file specified by file_path.
 
     Args:
         file_path (str): The path to the JSON file.
@@ -28,43 +30,62 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
     Returns:
         dict: The contents of the JSON file.
     """
-    if not os.path.exists(file_path): # If the file doesn't exist, return default depth
-        return {"depth": 3}
+    default_settings = {"depth": 3, "use_stockfish": False}
+    
+    if not os.path.exists(file_path):  # If the file doesn't exist, return default settings
+        return default_settings
 
     with open(file_path, 'r') as f:
-        return json.load(f)
+        settings = json.load(f)
+
+    # Normalize the engine name to handle whitespace inconsistences 
+    engine = settings.get("selectedEngine", "").strip()
+
+    depth = settings.get("depth", 3)
     
+    # What engine has the user selected?
+    if engine == "Stockfish":
+        return {"depth": depth, "use_stockfish": True}
+    elif engine == "cobra":
+        return {"depth": depth, "use_stockfish": False}
+    else:
+        # If engine name is unknown or missing, return default settings
+        return default_settings
 
     
-    
-
 def communicate():
     board = chess.Board()
-    depth = read_settings_file_from_JSON(get_unity_persistance_path())["depth"]
+    settings = read_settings_file_from_JSON(get_unity_persistance_path())
+    depth = settings["depth"]
+    use_stockfish = settings["use_stockfish"]
 
-    # Setting up the ZeroMQ context and socket
     context = zmq.Context()
-    socket = context.socket(zmq.REP)  # REP - reply/RequestSocket
+    socket = context.socket(zmq.REP)
     socket.bind("tcp://*:5555")
 
+    if use_stockfish:
+        stockfish_engine = init_stockfish()
+
+    print(use_stockfish)
+
     while True:
-        # Wait for the next request from the Unity
         san = socket.recv().decode('utf-8')
         print("Received PGN: %s" % san)
 
-        # Process the PGN and push it to the board
         move = board.parse_san(san)
         board.push(move)
         print(board)
 
-        
-        # Generate a move
-        generated_move = movegen.next_move(depth, board)
+        if use_stockfish:
+            result = stockfish_engine.play(board, chess.engine.Limit(depth=depth)) #uses depth from JSON 
+            generated_move = result.move
+        else:
+            generated_move = movegen.next_move(depth, board)
+
         san = board.san(generated_move)
         board.push_san(san)
         print(board)
 
-        # Send the generated move and evaluation score back to Unity
         socket.send(f"{san}".encode('utf-8'))
 
 def get_depth_from_unity(file_path: str) -> int:
