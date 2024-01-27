@@ -6,7 +6,21 @@ import json
 import platform
 import os
 import chess.engine
+import sys
+import chess.pgn
 from engines import init_stockfish
+from analyse import analyse
+
+def signal_handler(sig, frame):
+    """Handles the SIGINT signal, which is sent on exit.
+
+    Args:
+        sig (int): The signal number.
+        frame (frame): The current stack frame.
+    """
+    print("SIGINT received, exiting...")
+    sys.exit(0)
+
 
 def get_unity_persistance_path() -> str:
     """Gets the path to the Unity persistence file. Chess.NET's JSON settings file is stored at this path, which is platform dependent.
@@ -81,6 +95,25 @@ def communicate():
 
     while True:
         san = socket.recv().decode('utf-8') #receive move and normalise to utf-8
+        if san == "SHUTDOWN":
+            print("Received SHUTDOWN, exiting...")
+            socket.close()
+            context.term()
+            sys.exit(0)
+        if san == "GAME_END":
+            stockfish_engine.close() #engine is closed and reopened to avoid memory leak
+
+            print("Received GAME_END command")
+            game = chess.pgn.Game.from_board(board)
+            exporter = chess.pgn.StringExporter(headers=True, variations=True, comments=True)
+            pgn_string = game.accept(exporter)
+            best_move_count = analyse(pgn_string)
+
+            socket.send(f"{best_move_count}".encode('utf-8'))
+            socket.close()
+            context.term()
+            sys.exit(0)
+           
         print("Received PGN: %s" % san)
 
         move = board.parse_san(san)
@@ -98,7 +131,7 @@ def communicate():
         print(board)
 
         socket.send(f"{san}".encode('utf-8'))
-
+    
 def get_depth_from_unity(file_path: str) -> int:
     """Reads the depth from the JSON specified by file_path. The depth int should be written to the file in the Chess.NET settings.
 
