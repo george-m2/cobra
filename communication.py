@@ -63,7 +63,7 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
     elif engine == "cobra":
         return {"depth": depth, "use_stockfish": False}
     else:
-        # If engine name is unknown or missing, return default settings
+        # If engine name is unknown or missing, return cobra engine, depth 3 
         return default_settings
 
     
@@ -82,6 +82,7 @@ def communicate():
     settings = read_settings_file_from_JSON(get_unity_persistance_path()) #reads settings from Chess.NET in JSON file
     depth = settings["depth"]
     use_stockfish = settings["use_stockfish"]
+    elo = settings["elo"]
 
     # ZeroMQ socket setup
     context = zmq.Context() 
@@ -92,7 +93,8 @@ def communicate():
         stockfish_engine = init_stockfish()
 
     print(use_stockfish)
-
+    stockfish_engine.configure({"UCI_Elo": elo}) #set elo for Stockfish
+    
     while True:
         san = socket.recv().decode('utf-8') #receive move and normalise to utf-8
         if san == "SHUTDOWN":
@@ -132,19 +134,6 @@ def communicate():
 
         socket.send(f"{san}".encode('utf-8'))
     
-def get_depth_from_unity(file_path: str) -> int:
-    """Reads the depth from the JSON specified by file_path. The depth int should be written to the file in the Chess.NET settings.
-
-    Args:
-        file_path (str): The path to the file containing the depth.
-
-    Returns:
-        int: The depth.
-    """
-    with open(file_path, 'w') as f:
-        config = json.load(f)
-        return config["depth"]
-
 def standalone_cli_args():
     """Command line arguments for standalone use (not being called by the Chess.NET process) cobra engine.
 
