@@ -1,7 +1,5 @@
 import chess
 
-# evaluation module inspired by healeycodes' andoma article and chess programming wiki
-# https://healeycodes.com/building-my-own-chess-engine
 # centipawn values for each piece from Tomasz Michniewski's Simplified Evaluation Function
 # https://www.chessprogramming.org/Simplified_Evaluation_Function
 
@@ -108,7 +106,7 @@ def move_value(board: chess.Board, move: chess.Move, endgame: bool) -> float:
         endgame (bool)
 
     Raises:
-        Exception: If there is no piece at the from square
+        Exception: If there is no piece at the _from square
 
     Returns:
         float: Centipawn value of the move
@@ -135,7 +133,7 @@ def move_value(board: chess.Board, move: chess.Move, endgame: bool) -> float:
     return current_move_value
 
 
-def evaluate_capture(board: chess.Board, move: chess.Move) -> float:
+def evaluate_capture(board: chess.Board, move: chess.Move) -> int:
     """Given a capturing move, generate a centipawn value of the trade being made.
 
     Args:
@@ -160,6 +158,16 @@ def evaluate_capture(board: chess.Board, move: chess.Move) -> float:
 
 
 def evaluate_piece(piece: chess.Piece, square: chess.Square, end_game: bool) -> int:
+    """
+    Evaluates the value of a piece at a given square.
+    Args:
+        piece (chess.Piece):
+        square (chess.Square):
+        end_game (bool): Are we in the end game?
+
+    Returns:
+        int: Centipawn value of the piece at the given square
+    """
     piece_type = piece.piece_type
     color = chess.WHITE if piece.color else chess.BLACK
 
@@ -210,7 +218,9 @@ def check_end_game(board: chess.Board) -> bool:
     :param board: chess.Board
     :return: bool
     """
+    # how many queens are on the board?
     queens = sum(1 for sq in chess.SQUARES if board.piece_at(sq) and board.piece_at(sq).piece_type == chess.QUEEN)
+    # how many minor pieces are on the board?
     minor_pieces = sum(1 for sq in chess.SQUARES if
                        board.piece_at(sq) and board.piece_at(sq).piece_type in [chess.BISHOP, chess.KNIGHT])
 
