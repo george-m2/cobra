@@ -1,12 +1,12 @@
 import chess
 import time
-from eval import evaluate_board, move_value, check_end_game
+from src.eval import evaluate_board, move_value, check_end_game
 
 MATE_SCORE = 9999  # arbitrary score for checkmate - checkmate condition is the best quantifiable outcome
 MATE_THRESHOLD = 9990  # threshold for checkmate - if the score is above this, the game is over
 
 
-def next_move(depth: int, board: chess.Board, debug=True) -> chess.Move:
+def next_move(depth: int, board: chess.Board) -> chess.Move:
     """
     Determine the next best move.
 
@@ -22,8 +22,7 @@ def next_move(depth: int, board: chess.Board, debug=True) -> chess.Move:
     move = find_best_move_minimax(depth, board)  # minimax call
     elapsed_time = time.time() - t0
 
-    if debug:
-        print(f"Depth: {depth}, Time: {elapsed_time:.2f}")
+    print(f"Depth: {depth}, Time: {elapsed_time:.2f}")
     return move
 
 

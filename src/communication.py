@@ -9,7 +9,7 @@ import chess.engine
 import sys
 import chess.pgn
 from engines import init_stockfish
-from analyse import analyse
+from src.analyse import analyse
 
 def signal_handler(sig, frame):
     """Handles the SIGINT signal, which is sent on exit.
