@@ -11,6 +11,7 @@ import chess.pgn
 from engines import init_stockfish
 from src.analyse import analyse
 
+
 def signal_handler(sig, frame):
     """Handles the SIGINT signal, which is sent on exit.
 
@@ -32,9 +33,10 @@ def get_unity_persistance_path() -> str:
         return f"{os.getenv('APPDATA')}/../LocalLow/DefaultCompany/Chess.NET/settings.json"
     elif platform.system() == "Linux":
         return f"{os.getenv('HOME')}/.config/unity3d/DefaultCompany/Chess.NET/settings.json"
-    elif platform.system() == "Darwin": # macOS
+    elif platform.system() == "Darwin":  # macOS
         return f"{os.getenv('HOME')}/Library/Application Support/DefaultCompany/Chess_NET/settings.json"
-    
+
+
 def read_settings_file_from_JSON(file_path: str) -> dict:
     """Reads the Unity settings file from JSON file specified by file_path.
 
@@ -44,8 +46,8 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
     Returns:
         dict: The contents of the JSON file.
     """
-    default_settings = {"depth": 3, "use_stockfish": False}
-    
+    default_settings = {"depth": 3, "use_stockfish": False, "elo": 800}
+
     if not os.path.exists(file_path):  # If the file doesn't exist, return default settings
         return default_settings
 
@@ -55,18 +57,20 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
     # Normalize the engine name to handle whitespace inconsistences 
     engine = settings.get("selectedEngine", "").strip()
 
-    depth = settings.get("depth", 3)
-    
+    depth = settings.get("depth")
+
+    elo = settings.get("elo")
+
     # What engine has the user selected?
     if engine == "Stockfish":
-        return {"depth": depth, "use_stockfish": True}
+        return {"depth": depth, "use_stockfish": True, "elo": elo}
     elif engine == "cobra":
-        return {"depth": depth, "use_stockfish": False}
+        return {"depth": depth, "use_stockfish": False} # no need to include elo for cobra
     else:
         # If engine name is unknown or missing, return cobra engine, depth 3 
         return default_settings
 
-    
+
 def communicate():
     """
     Function to handle communication between cobra/Chess.NET.
@@ -79,31 +83,31 @@ def communicate():
         None
     """
     board = chess.Board()
-    settings = read_settings_file_from_JSON(get_unity_persistance_path()) #reads settings from Chess.NET in JSON file
+    settings = read_settings_file_from_JSON(get_unity_persistance_path())  # reads settings from Chess.NET in JSON file
     depth = settings["depth"]
     use_stockfish = settings["use_stockfish"]
     elo = settings["elo"]
 
     # ZeroMQ socket setup
-    context = zmq.Context() 
+    context = zmq.Context()
     socket = context.socket(zmq.REP)
-    socket.bind("tcp://*:5555") #loopback
+    socket.bind("tcp://*:5555")  # loopback
 
     if use_stockfish:
         stockfish_engine = init_stockfish()
+        stockfish_engine.configure({"UCI_Elo": elo})  # set elo for Stockfish
 
-    print(use_stockfish)
-    stockfish_engine.configure({"UCI_Elo": elo}) #set elo for Stockfish
-    
+    print(f"Depth: {depth}, Stockfish: {use_stockfish}, Elo: {elo}")
+
     while True:
-        san = socket.recv().decode('utf-8') #receive move and normalise to utf-8
+        san = socket.recv().decode('utf-8')  # receive move and normalise to utf-8
         if san == "SHUTDOWN":
             print("Received SHUTDOWN, exiting...")
             socket.close()
             context.term()
             sys.exit(0)
         if san == "GAME_END":
-            stockfish_engine.close() #engine is closed and reopened to avoid memory leak
+            stockfish_engine.close()  # engine is closed and reopened to avoid memory leak
 
             print("Received GAME_END command")
             game = chess.pgn.Game.from_board(board)
@@ -115,7 +119,7 @@ def communicate():
             socket.close()
             context.term()
             sys.exit(0)
-           
+
         print("Received PGN: %s" % san)
 
         move = board.parse_san(san)
@@ -123,17 +127,18 @@ def communicate():
         print(board)
 
         if use_stockfish:
-            result = stockfish_engine.play(board, chess.engine.Limit(depth=depth)) #uses depth from JSON 
+            result = stockfish_engine.play(board, chess.engine.Limit(depth=depth))  # uses depth from JSON
             generated_move = result.move
         else:
-            generated_move = movegen.next_move(depth, board) #create move
+            generated_move = movegen.next_move(depth, board)  # create move
 
         san = board.san(generated_move)
         board.push_san(san)
         print(board)
 
         socket.send(f"{san}".encode('utf-8'))
-    
+
+
 def standalone_cli_args():
     """Command line arguments for standalone use (not being called by the Chess.NET process) cobra engine.
 
@@ -144,4 +149,3 @@ def standalone_cli_args():
     parser.add_argument('--depth', type=int, help='Depth of search')
     parser.add_argument('--use-stockfish', action='store_true', help='Use Stockfish(NNUE) engine')
     return parser.parse_args()
-    
