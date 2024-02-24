@@ -9,7 +9,8 @@ import chess.engine
 import sys
 import chess.pgn
 from engines import init_stockfish
-from src.analyse import analyse
+import analyse
+import time
 
 
 def signal_handler(sig, frame):
@@ -86,7 +87,6 @@ def communicate():
     settings = read_settings_file_from_JSON(get_unity_persistance_path())  # reads settings from Chess.NET in JSON file
     depth = settings["depth"]
     use_stockfish = settings["use_stockfish"]
-    elo = settings["elo"]
 
     # ZeroMQ socket setup
     context = zmq.Context()
@@ -94,6 +94,8 @@ def communicate():
     socket.bind("tcp://*:5555")  # loopback
 
     if use_stockfish:
+        # getting Elo should be with depth, engine but reference before assignment error is thrown
+        elo = settings["elo"]  # elo is only used for Stockfish
         stockfish_engine = init_stockfish()
         stockfish_engine.configure({"UCI_Elo": elo})  # set elo for Stockfish
 
@@ -113,7 +115,7 @@ def communicate():
             game = chess.pgn.Game.from_board(board)
             exporter = chess.pgn.StringExporter(headers=True, variations=True, comments=True)
             pgn_string = game.accept(exporter)
-            best_move_count = analyse(pgn_string)
+            best_move_count = analyse.analyse(pgn_string)
 
             socket.send(f"{best_move_count}".encode('utf-8'))
             socket.close()
@@ -126,11 +128,16 @@ def communicate():
         board.push(move)
         print(board)
 
+        start_time = time.time()
         if use_stockfish:
             result = stockfish_engine.play(board, chess.engine.Limit(depth=depth))  # uses depth from JSON
             generated_move = result.move
         else:
             generated_move = movegen.next_move(depth, board)  # create move
+
+        end_time = time.time()
+        delta_time = end_time - start_time
+        print(f"Move execution time: {delta_time} seconds")
 
         san = board.san(generated_move)
         board.push_san(san)

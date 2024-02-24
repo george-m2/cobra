@@ -1,6 +1,6 @@
 import chess
 import time
-from src.eval import evaluate_board, move_value, check_end_game
+from eval import evaluate_board, move_value, check_end_game
 
 MATE_SCORE = 9999  # arbitrary score for checkmate - checkmate condition is the best quantifiable outcome
 MATE_THRESHOLD = 9990  # threshold for checkmate - if the score is above this, the game is over
