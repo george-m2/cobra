@@ -47,7 +47,7 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
     Returns:
         dict: The contents of the JSON file.
     """
-    default_settings = {"depth": 3, "use_stockfish": False, "elo": 800}
+    default_settings = {"depth": 3, "use_stockfish": False, "stockfishSkillLevel": 2}
 
     if not os.path.exists(file_path):  # If the file doesn't exist, return default settings
         return default_settings
@@ -60,13 +60,13 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
 
     depth = settings.get("depth")
 
-    elo = settings.get("elo")
+    skill_level = settings.get("stockfishSkillLevel")
 
     # What engine has the user selected?
     if engine == "Stockfish":
-        return {"depth": depth, "use_stockfish": True, "elo": elo}
+        return {"depth": depth, "use_stockfish": True, "skill_level": skill_level}
     elif engine == "cobra":
-        return {"depth": depth, "use_stockfish": False} # no need to include elo for cobra
+        return {"depth": depth, "use_stockfish": False} # no need to include skill level for cobra
     else:
         # If engine name is unknown or missing, return cobra engine, depth 3 
         return default_settings
@@ -94,12 +94,12 @@ def communicate():
     socket.bind("tcp://*:5555")  # loopback
 
     if use_stockfish:
-        # getting Elo should be with depth, engine but reference before assignment error is thrown
-        elo = settings["elo"]  # elo is only used for Stockfish
+        skill_level = settings["skill_level"]
         stockfish_engine = init_stockfish()
-        stockfish_engine.configure({"UCI_Elo": elo})  # set elo for Stockfish
-
-    print(f"Depth: {depth}, Stockfish: {use_stockfish}, Elo: {elo}")
+        stockfish_engine.configure({"Skill Level": 7})
+        print(f"Depth: {depth}, Stockfish: {use_stockfish}, Stockfish Skill Level: {skill_level}")
+    else:
+        print(f"Depth: {depth}, cobra: True")
 
     while True:
         san = socket.recv().decode('utf-8')  # receive move and normalise to utf-8
