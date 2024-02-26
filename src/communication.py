@@ -88,6 +88,7 @@ def communicate():
     settings = read_settings_file_from_JSON(get_unity_persistance_path())  # reads settings from Chess.NET in JSON file
     depth = settings["depth"]
     use_stockfish = settings["use_stockfish"]
+    acpl_val = settings["ACPL"]
 
     # ZeroMQ socket setup
     context = zmq.Context()
@@ -124,7 +125,7 @@ def communicate():
             # https://zguide.zeromq.org/docs/chapter4/
 
             end_state_data = {"bestMoveCount": best_move_count, "blunderCount": blunder_count}
-            
+
             end_state_data_json = json.dumps(end_state_data)
             socket.send(end_state_data_json.encode('utf-8'))
             socket.close()
@@ -149,9 +150,10 @@ def communicate():
         print(f"Move execution time: {delta_time} seconds")
 
         san = board.san(generated_move)
-        if use_stockfish == False:
-            stockfish_engine = init_stockfish() # TODO: make this user-specific, this forces stockfish to be enabled
-        acpl_val = analyse.generate_ACPL(stockfish_engine, board, generated_move)
+        if use_stockfish == False and acpl_val == True:
+            stockfish_engine = init_stockfish()
+
+        acpl_val = analyse.generate_ACPL(board, generated_move, stockfish_engine)
         board.push_san(san)
         print(san)
         print(f"Accuracy: {acpl_val}")
