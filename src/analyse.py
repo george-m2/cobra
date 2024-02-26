@@ -79,3 +79,31 @@ def analyse_blunders(pgn_source, is_pgn_file=False):
     print("Number of blunders:", blunder_count)
     return blunder_count
 
+
+def generate_ACPL(board, move, engine = None):
+    """
+    Evaluate the given move by comparing it against the engine's best move.
+
+    Args:
+        engine (chess.engine.SimpleEngine): The chess engine for evaluation.
+        board (chess.Board): The current board state before the move.
+        move (chess.Move): The move to evaluate.
+
+    Returns:
+        int: The centipawn loss of the move, compared to the engine's best move.
+    """
+
+    board_clone = board.copy()
+    # evaluate before the move
+    info_before = engine.analyse(board, chess.engine.Limit(time=3)) # 3 seconds between moves
+    score_before = info_before["score"].white().score(mate_score=10000)
+
+    # evaluate after the move
+    board_clone.push(move)
+    info_after = engine.analyse(board, chess.engine.Limit(depth=20))
+    score_after = info_after["score"].white().score(mate_score=10000)
+
+    # before - after = ACPL
+    cp_loss = score_before - score_after
+    return cp_loss
+

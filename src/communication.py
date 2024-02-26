@@ -149,10 +149,13 @@ def communicate():
         print(f"Move execution time: {delta_time} seconds")
 
         san = board.san(generated_move)
+        if use_stockfish == False:
+            stockfish_engine = init_stockfish() # TODO: make this user-specific, this forces stockfish to be enabled
+        acpl_val = analyse.generate_ACPL(stockfish_engine, board, generated_move)
         board.push_san(san)
         print(san)
+        print(f"Accuracy: {acpl_val}")
         print(board)
-
         socket.send(f"{san}".encode('utf-8'))
 
 
