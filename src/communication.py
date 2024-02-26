@@ -8,6 +8,7 @@ import os
 import chess.engine
 import sys
 import chess.pgn
+import json
 from engines import init_stockfish
 import analyse
 import time
@@ -66,7 +67,7 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
     if engine == "Stockfish":
         return {"depth": depth, "use_stockfish": True, "skill_level": skill_level}
     elif engine == "cobra":
-        return {"depth": depth, "use_stockfish": False} # no need to include skill level for cobra
+        return {"depth": depth, "use_stockfish": False}  # no need to include skill level for cobra
     else:
         # If engine name is unknown or missing, return cobra engine, depth 3 
         return default_settings
@@ -80,7 +81,7 @@ def communicate():
     and listens for incoming PGN moves over a ZeroMQ socket.
     It then generates a response move based on the received move and sends it back.
 
-    Returns:
+    Returns:s
         None
     """
     board = chess.Board()
@@ -97,7 +98,7 @@ def communicate():
         skill_level = settings["skill_level"]
         stockfish_engine = init_stockfish()
         stockfish_engine.configure({"Skill Level": 7})
-        print(f"Depth: {depth}, Stockfish: {use_stockfish}, Stockfish Skill Level: {skill_level}")
+        print(f"Depth: {depth}, Stockfish: {use_stockfish}, Skill: {skill_level}")
     else:
         print(f"Depth: {depth}, cobra: True")
 
@@ -107,17 +108,25 @@ def communicate():
             print("Received SHUTDOWN, exiting...")
             socket.close()
             context.term()
+            stockfish_engine.quit()
             sys.exit(0)
         if san == "GAME_END":
             stockfish_engine.close()  # engine is closed and reopened to avoid memory leak
 
             print("Received GAME_END command")
             game = chess.pgn.Game.from_board(board)
-            exporter = chess.pgn.StringExporter(headers=True, variations=True, comments=True)
+            exporter = chess.pgn.StringExporter(headers=True, variations=True, comments=True)  # PGN exporter
             pgn_string = game.accept(exporter)
-            best_move_count = analyse.analyse(pgn_string)
+            best_move_count = analyse.analyse_best_move(pgn_string)
+            blunder_count = analyse.analyse_blunders(pgn_string)
 
-            socket.send(f"{best_move_count}".encode('utf-8'))
+            # both values cannot be sent independently due to REP deadlock, therefore they are sent as a JSON object
+            # https://zguide.zeromq.org/docs/chapter4/
+
+            end_state_data = {"bestMoveCount": best_move_count, "blunderCount": blunder_count}
+            
+            end_state_data_json = json.dumps(end_state_data)
+            socket.send(end_state_data_json.encode('utf-8'))
             socket.close()
             context.term()
             sys.exit(0)
@@ -141,6 +150,7 @@ def communicate():
 
         san = board.san(generated_move)
         board.push_san(san)
+        print(san)
         print(board)
 
         socket.send(f"{san}".encode('utf-8'))
