@@ -151,13 +151,18 @@ def communicate():
         if use_stockfish == False and acpl_val == True:
             stockfish_engine = init_stockfish()
 
-        acpl_value = analyse.generate_ACPL(board, generated_move, stockfish_engine)
+        if acpl_val == True:
+            acpl_value = analyse.generate_ACPL(board, generated_move, stockfish_engine)
         board.push_san(san)
         print(san)
         print(f"Accuracy: {acpl_value}")
         print(board)
-        socket.send(f"{san}".encode('utf-8'))
-
+        if acpl_val == True:
+            response_data = {"move": san, "acpl": acpl_value} # send move and ACPL value as JSON object
+        else:
+            response_data = {"move": san}
+        response_json = json.dumps(response_data)
+        socket.send(response_json.encode('utf-8'))
 
 def standalone_cli_args():
     """Command line arguments for standalone use (not being called by the Chess.NET process) cobra engine.
