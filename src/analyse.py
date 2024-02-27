@@ -95,12 +95,12 @@ def generate_ACPL(board, move, engine = None):
 
     board_clone = board.copy()
     # evaluate before the move
-    info_before = engine.analyse(board, chess.engine.Limit(time=3)) # 3 seconds between moves
+    info_before = engine.analyse(board, chess.engine.Limit(depth=10))
     score_before = info_before["score"].white().score(mate_score=10000)
 
     # evaluate after the move
     board_clone.push(move)
-    info_after = engine.analyse(board, chess.engine.Limit(depth=20))
+    info_after = engine.analyse(board, chess.engine.Limit(depth=10))
     score_after = info_after["score"].white().score(mate_score=10000)
 
     # before - after = ACPL
