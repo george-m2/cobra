@@ -2,7 +2,6 @@ import zmq
 import chess
 import movegen
 import argparse
-import json
 import platform
 import os
 import chess.engine
@@ -58,16 +57,15 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
 
     # Normalize the engine name to handle whitespace inconsistences 
     engine = settings.get("selectedEngine", "").strip()
-
     depth = settings.get("depth")
-
     skill_level = settings.get("stockfishSkillLevel")
+    acpl_val = settings.get("ACPL")
 
     # What engine has the user selected?
     if engine == "Stockfish":
-        return {"depth": depth, "use_stockfish": True, "skill_level": skill_level}
+        return {"depth": depth, "use_stockfish": True, "skill_level": skill_level, "ACPL": acpl_val}
     elif engine == "cobra":
-        return {"depth": depth, "use_stockfish": False}  # no need to include skill level for cobra
+        return {"depth": depth, "use_stockfish": False, "acpl_val": acpl_val}  # no need to include skill level for cobra
     else:
         # If engine name is unknown or missing, return cobra engine, depth 3 
         return default_settings
@@ -81,7 +79,7 @@ def communicate():
     and listens for incoming PGN moves over a ZeroMQ socket.
     It then generates a response move based on the received move and sends it back.
 
-    Returns:s
+    Returns:
         None
     """
     board = chess.Board()
@@ -99,9 +97,9 @@ def communicate():
         skill_level = settings["skill_level"]
         stockfish_engine = init_stockfish()
         stockfish_engine.configure({"Skill Level": 7})
-        print(f"Depth: {depth}, Stockfish: {use_stockfish}, Skill: {skill_level}")
+        print(f"Depth: {depth}, Stockfish: {use_stockfish}, Skill: {skill_level}", f"ACPL: {acpl_val}")
     else:
-        print(f"Depth: {depth}, cobra: True")
+        print(f"Depth: {depth}, cobra: True", f"ACPL: {acpl_val}")
 
     while True:
         san = socket.recv().decode('utf-8')  # receive move and normalise to utf-8
@@ -153,10 +151,10 @@ def communicate():
         if use_stockfish == False and acpl_val == True:
             stockfish_engine = init_stockfish()
 
-        acpl_val = analyse.generate_ACPL(board, generated_move, stockfish_engine)
+        acpl_value = analyse.generate_ACPL(board, generated_move, stockfish_engine)
         board.push_san(san)
         print(san)
-        print(f"Accuracy: {acpl_val}")
+        print(f"Accuracy: {acpl_value}")
         print(board)
         socket.send(f"{san}".encode('utf-8'))
 
