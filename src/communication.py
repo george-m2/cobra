@@ -47,7 +47,7 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
     Returns:
         dict: The contents of the JSON file.
     """
-    default_settings = {"depth": 3, "use_stockfish": False, "stockfishSkillLevel": 2}
+    default_settings = {"depth": 3, "use_stockfish": False, "stockfishSkillLevel": 2, "ACPL": False}
 
     if not os.path.exists(file_path):  # If the file doesn't exist, return default settings
         return default_settings
@@ -55,7 +55,7 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
     with open(file_path, 'r') as f:
         settings = json.load(f)
 
-    # Normalize the engine name to handle whitespace inconsistences 
+    # Normalize the engine name to handle whitespace inconsistencies
     engine = settings.get("selectedEngine", "").strip()
     depth = settings.get("depth")
     skill_level = settings.get("stockfishSkillLevel")
@@ -65,7 +65,8 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
     if engine == "Stockfish":
         return {"depth": depth, "use_stockfish": True, "skill_level": skill_level, "ACPL": acpl_val}
     elif engine == "cobra":
-        return {"depth": depth, "use_stockfish": False, "acpl_val": acpl_val}  # no need to include skill level for cobra
+        return {"depth": depth, "use_stockfish": False,
+                "acpl_val": acpl_val}  # no need to include skill level for cobra
     else:
         # If engine name is unknown or missing, return cobra engine, depth 3 
         return default_settings
@@ -75,18 +76,22 @@ def communicate():
     """
     Function to handle communication between cobra/Chess.NET.
 
-    This function reads settings from a JSON file, initializes the chess board,
+    This function reads settings from a JSON file or passed as CLI args, initialises the chess board,
     and listens for incoming PGN moves over a ZeroMQ socket.
     It then generates a response move based on the received move and sends it back.
 
-    Returns:
-        None
     """
+    parser = standalone_cli_args()
+    args = parser.parse_args()
+    settings = read_settings_file_from_JSON(get_unity_persistance_path())
+
+    # determine settings based on args or fall back to settings.json
+    depth = args.depth if args.depth is not None else settings.get("depth", 3)
+    use_stockfish = args.use_stockfish if args.use_stockfish is not None else settings.get("use_stockfish", False)
+    skill_level = args.skill_level if args.skill_level is not None else settings.get("skill_level", 2)
+    acpl_val = args.acpl if args.acpl is not None else settings.get("ACPL", False)
+
     board = chess.Board()
-    settings = read_settings_file_from_JSON(get_unity_persistance_path())  # reads settings from Chess.NET in JSON file
-    depth = settings["depth"]
-    use_stockfish = settings["use_stockfish"]
-    acpl_val = settings["ACPL"]
 
     # ZeroMQ socket setup
     context = zmq.Context()
@@ -94,23 +99,24 @@ def communicate():
     socket.bind("tcp://*:5555")  # loopback
 
     if use_stockfish:
-        skill_level = settings["skill_level"]
         stockfish_engine = init_stockfish()
-        stockfish_engine.configure({"Skill Level": 7})
+        stockfish_engine.configure({"Skill Level": skill_level})
         print(f"Depth: {depth}, Stockfish: {use_stockfish}, Skill: {skill_level}", f"ACPL: {acpl_val}")
     else:
         print(f"Depth: {depth}, cobra: True", f"ACPL: {acpl_val}")
 
     while True:
-        san = socket.recv().decode('utf-8')  # receive move and normalise to utf-8
+        san = socket.recv().decode('utf-8')  # receive move and normalize to utf-8
         if san == "SHUTDOWN":
             print("Received SHUTDOWN, exiting...")
             socket.close()
             context.term()
-            stockfish_engine.quit()
+            if use_stockfish:
+                stockfish_engine.quit()
             sys.exit(0)
         if san == "GAME_END":
-            stockfish_engine.close()  # engine is closed and reopened to avoid memory leak
+            if use_stockfish:
+                stockfish_engine.close()  # engine is closed and reopened to avoid memory leak
 
             print("Received GAME_END command")
             game = chess.pgn.Game.from_board(board)
@@ -154,15 +160,15 @@ def communicate():
         if acpl_val == True:
             acpl_value = analyse.generate_ACPL(board, generated_move, stockfish_engine)
         board.push_san(san)
-        print(san)
-        print(f"Accuracy: {acpl_value}")
+        print(san, f"Accuracy: {acpl_value}", f"Next to move: {board.turn}")
         print(board)
         if acpl_val == True:
-            response_data = {"move": san, "acpl": acpl_value} # send move and ACPL value as JSON object
+            response_data = {"move": san, "acpl": acpl_value}  # send move and ACPL value as JSON object
         else:
             response_data = {"move": san}
         response_json = json.dumps(response_data)
         socket.send(response_json.encode('utf-8'))
+
 
 def standalone_cli_args():
     """Command line arguments for standalone use (not being called by the Chess.NET process) cobra engine.
@@ -170,7 +176,15 @@ def standalone_cli_args():
     Returns:
         ArgumentParser object: The parser object containing the command line arguments.
     """
-    parser = argparse.ArgumentParser(description='cobra engine with minimax/alpha-beta pruning algorithm')
-    parser.add_argument('--depth', type=int, help='Depth of search')
-    parser.add_argument('--use-stockfish', action='store_true', help='Use Stockfish(NNUE) engine')
-    return parser.parse_args()
+    parser = argparse.ArgumentParser(description='Cobra chess engine with minimax(AB) pruning algorithm. '
+                                                 'George Maycock, 2024')
+    parser.add_argument('--depth', type=int, default=None, help='Iterative depth for the engine.')
+    parser.add_argument('--use-stockfish', nargs='?', const=True, default=None,
+                        help='Use Stockfish engine instead of Cobra.')
+    parser.add_argument('--acpl', nargs='?', const=True, default=None, help='Enable ACPL calculation.')
+    parser.add_argument('--skill-level', type=int, default=None, help='Skill level for Stockfish engine.')
+    args, unknown = parser.parse_known_args()
+    if '--help' in unknown:
+        parser.print_help()
+        sys.exit(0)
+    return parser
