@@ -79,10 +79,11 @@ def analyse_blunders(pgn_source, is_pgn_file=False):
     print("Number of blunders:", blunder_count)
     return blunder_count
 
-
-def generate_ACPL(board, move, engine = None):
+def generate_ACPL(board, move, engine=None):
     """
     Evaluate the given move by comparing it against the engine's best move.
+    The ACPL is positive if it's a loss for White, and negative if it's a loss for Black,
+    indicating the move's quality from the player's perspective.
 
     Args:
         engine (chess.engine.SimpleEngine): The chess engine for evaluation.
@@ -90,20 +91,25 @@ def generate_ACPL(board, move, engine = None):
         move (chess.Move): The move to evaluate.
 
     Returns:
-        int: The centipawn loss of the move, compared to the engine's best move.
+        int: The centipawn loss of the move, compared to the engine's best move,
+             positive for White's loss and negative for Black's loss.
     """
 
-    board_clone = board.copy()
     # evaluate before the move
-    info_before = engine.analyse(board, chess.engine.Limit(depth=10))
-    score_before = info_before["score"].white().score(mate_score=10000)
+    info_before = engine.analyse(board, chess.engine.Limit(depth=15))
+    score_before = info_before["score"].pov(board.turn).score(mate_score=10000)
 
     # evaluate after the move
-    board_clone.push(move)
-    info_after = engine.analyse(board, chess.engine.Limit(depth=10))
-    score_after = info_after["score"].white().score(mate_score=10000)
+    board.push(move)
+    info_after = engine.analyse(board, chess.engine.Limit(depth=15))
+    score_after = info_after["score"].pov(board.turn).score(mate_score=10000)
 
-    # before - after = ACPL
-    cp_loss = score_before - score_after
+    if board.turn == chess.WHITE:
+        # It was Black's turn, so make the ACPL negative to reflect Black's perspective
+        cp_loss = score_before - score_after
+    else:
+        # It was White's turn, so make the ACPL positive to reflect White's perspective
+        cp_loss = score_after - score_before
+
     return cp_loss
 

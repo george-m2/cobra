@@ -98,6 +98,9 @@ def communicate():
     socket = context.socket(zmq.REP)
     socket.bind("tcp://*:5555")  # loopback
 
+    if use_stockfish is False and acpl_val is True:
+        stockfish_engine = init_stockfish()  # if ACPL is enabled, Stockfish has to be initialised for ACPL calculation
+
     if use_stockfish:
         stockfish_engine = init_stockfish()
         stockfish_engine.configure({"Skill Level": skill_level})
@@ -139,8 +142,14 @@ def communicate():
         print("Received PGN: %s" % san)
 
         move = board.parse_san(san)
+        if acpl_val == True:
+            # copy of the board pre-move for ACPL calculation (W)
+            acpl_white_board = board.copy()
+            acpl_value = analyse.generate_ACPL(acpl_white_board, move, stockfish_engine)
+
         board.push(move)
         print(board)
+        print(f"Accuracy of White's move: {acpl_value}", f"Next to move: {board.turn}")
 
         start_time = time.time()
         if use_stockfish:
@@ -154,11 +163,6 @@ def communicate():
         print(f"Move execution time: {delta_time} seconds")
 
         san = board.san(generated_move)
-        if use_stockfish == False and acpl_val == True:
-            stockfish_engine = init_stockfish()
-
-        if acpl_val == True:
-            acpl_value = analyse.generate_ACPL(board, generated_move, stockfish_engine)
         board.push_san(san)
         print(san, f"Accuracy: {acpl_value}", f"Next to move: {board.turn}")
         print(board)
