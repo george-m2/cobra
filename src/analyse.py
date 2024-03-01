@@ -104,12 +104,13 @@ def generate_ACPL(board, move, engine=None):
     info_after = engine.analyse(board, chess.engine.Limit(depth=15))
     score_after = info_after["score"].pov(board.turn).score(mate_score=10000)
 
-    if board.turn == chess.WHITE:
+    if board.turn == chess.BLACK:
         # It was Black's turn, so make the ACPL negative to reflect Black's perspective
         cp_loss = score_before - score_after
     else:
         # It was White's turn, so make the ACPL positive to reflect White's perspective
         cp_loss = score_after - score_before
 
+    cp_loss = cp_loss
     return cp_loss
 
