@@ -11,6 +11,7 @@ import json
 from engines import init_stockfish
 import analyse
 import time
+import analyse_graph
 
 
 def signal_handler(sig, frame):
@@ -108,6 +109,8 @@ def communicate():
     else:
         print(f"Depth: {depth}, cobra: True", f"ACPL: {acpl_val}")
 
+    acpl_array = []
+
     while True:
         san = socket.recv().decode('utf-8')  # receive move and normalize to utf-8
         if san == "SHUTDOWN":
@@ -116,7 +119,7 @@ def communicate():
             context.term()
             if use_stockfish:
                 stockfish_engine.quit()
-            sys.exit(0)
+                exit()
         if san == "GAME_END":
             if use_stockfish:
                 stockfish_engine.close()  # engine is closed and reopened to avoid memory leak
@@ -127,6 +130,7 @@ def communicate():
             pgn_string = game.accept(exporter)
             best_move_count = analyse.analyse_best_move(pgn_string)
             blunder_count = analyse.analyse_blunders(pgn_string)
+            analyse_graph.plot_ACPL_graph(acpl_array)  # append the ACPL value for the move
 
             # both values cannot be sent independently due to REP deadlock, therefore they are sent as a JSON object
             # https://zguide.zeromq.org/docs/chapter4/
@@ -137,7 +141,7 @@ def communicate():
             socket.send(end_state_data_json.encode('utf-8'))
             socket.close()
             context.term()
-            sys.exit(0)
+            exit() # potentially macOS specific - terminal does not close without this line
 
         print("Received PGN: %s" % san)
 
@@ -146,6 +150,8 @@ def communicate():
             # copy of the board pre-move for ACPL calculation (W)
             acpl_white_board = board.copy()
             acpl_value = analyse.generate_ACPL(acpl_white_board, move, stockfish_engine)
+            acpl_array.append(acpl_value)
+            print(f"ACPL: {acpl_array}")
 
         board.push(move)
         print(board)
