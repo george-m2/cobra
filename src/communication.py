@@ -67,7 +67,7 @@ def read_settings_file_from_JSON(file_path: str) -> dict:
 
     # What engine has the user selected?
     if engine == "Stockfish":
-        return {"depth": depth, "use_stockfish": True, "skill_level": skill_level, "ACPL": acpl_val}
+        return {"depth": depth, "use_stockfish": True, "skill_level": skill_level, "acpl_val": acpl_val}
     elif engine == "cobra":
         return {"depth": depth, "use_stockfish": False,
                 "acpl_val": acpl_val}  # no need to include skill level for cobra
@@ -93,7 +93,7 @@ def communicate():
     depth = args.depth if args.depth is not None else settings.get("depth", 3)
     use_stockfish = args.use_stockfish if args.use_stockfish is not None else settings.get("use_stockfish", False)
     skill_level = args.skill_level if args.skill_level is not None else settings.get("skill_level", 2)
-    acpl_val = args.acpl if args.acpl is not None else settings.get("ACPL", False)
+    acpl_val = args.acpl if args.acpl is not None else settings.get("acpl_val", False)
 
     board = chess.Board()
 
