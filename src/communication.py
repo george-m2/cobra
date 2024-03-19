@@ -12,6 +12,9 @@ from engines import init_stockfish
 import analyse
 import time
 import matplotlib
+
+from cli import standalone_use
+
 matplotlib.use("TkAgg")  # tkinter due to rendering issues in PyCharm
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
@@ -94,14 +97,11 @@ def communicate():
     use_stockfish = args.use_stockfish if args.use_stockfish is not None else settings.get("use_stockfish", False)
     skill_level = args.skill_level if args.skill_level is not None else settings.get("skill_level", 2)
     acpl_val = args.acpl if args.acpl is not None else settings.get("acpl_val", False)
+    # stockfish engine is not initialised by default,
+    # but still needs to be passed to standalone_use()
+    stockfish_engine = None
 
     board = chess.Board()
-
-    # ZeroMQ socket setup
-    context = zmq.Context()
-    socket = context.socket(zmq.REP)
-    socket.bind("tcp://*:5555")  # loopback
-
     if use_stockfish is False and acpl_val is True:
         stockfish_engine = init_stockfish()  # if ACPL is enabled, Stockfish has to be initialised for ACPL calculation
 
@@ -112,7 +112,16 @@ def communicate():
     else:
         print(f"Depth: {depth}, cobra: True", f"ACPL: {acpl_val}")
 
+    if len(sys.argv) > 1:
+        print("Welcome to cobra! Running in standalone mode.")
+        standalone_use(board, depth, use_stockfish, acpl_val, stockfish_engine)
+
     acpl_array = []
+
+    # ZeroMQ socket setup
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind("tcp://*:5555")  # loopback
 
     while True:
         san = socket.recv().decode('utf-8')  # receive move and normalize to utf-8

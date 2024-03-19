@@ -69,7 +69,7 @@ def analyse_blunders(pgn_source, is_pgn_file=False):
     blunder_count = 0
 
     for move in game.mainline_moves():
-        move_list = get_ordered_moves(board) # get ordered moves, ordered by quality dsc
+        move_list = get_ordered_moves(board)  # get ordered moves, ordered by quality dsc
         num_blunders = int(len(move_list) * 0.25)  # bottom 25% of moves are considered blunders
         blunder_moves = move_list[-num_blunders:]
         if move in blunder_moves:
@@ -78,6 +78,7 @@ def analyse_blunders(pgn_source, is_pgn_file=False):
 
     print("Number of blunders:", blunder_count)
     return blunder_count
+
 
 def generate_ACPL(board, move, engine=None):
     """
@@ -113,4 +114,3 @@ def generate_ACPL(board, move, engine=None):
 
     cp_loss = cp_loss
     return cp_loss
-
