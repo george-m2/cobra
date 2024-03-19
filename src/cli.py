@@ -14,7 +14,7 @@ def standalone_use(board: chess.Board, depth: int, use_stockfish: bool, acpl_val
         move = input_move(board)
         if acpl_val:
             acpl_board_clone = board.copy()
-            get_acpl(acpl_board_clone, move, acpl_array, stockfish_engine)  # get acpl value of the players move)
+            get_ACPL(acpl_board_clone, move, acpl_array, stockfish_engine)  # get acpl value of the players move)
         board.push(move)
         start_time = time.time()
         if use_stockfish:
@@ -40,6 +40,8 @@ def input_move(board) -> chess.Move:
     Function to handle input from the command line interface.
     Args:
         board: chess.Board object
+    Returns:
+        chess.Move: The move inputted by the user
     """
     move = input(f"\nYour move (An example move could be {list(board.legal_moves)[0]}):\n")
     for legal_move in board.legal_moves:
@@ -50,12 +52,20 @@ def input_move(board) -> chess.Move:
             return input_move(board)
 
 
-def get_acpl(board, move, acpl_array, stockfish_engine):
+def get_ACPL(board, move, acpl_array, stockfish_engine):
+    """
+    Standalone function to output the ACPL value of a move. Return value is the normalised ACPL, achieved by dividing by 100.
+    Args:
+        board: chess.Board
+        move: chess.Move
+        acpl_array: List of ACPL values to use in the ACPL graph
+        stockfish_engine: Stockfish instance
+    """
     acpl_white_board = board.copy()
     acpl_value = analyse.generate_ACPL(acpl_white_board, move, stockfish_engine)
+    acpl_value = acpl_value / 100
     acpl_array.append(acpl_value)
     print(f"Accuracy of White's move: {acpl_value}", f"Next to move: {board.turn}")
-    return acpl_array
 
 
 def render_board_with_icons(board: chess.Board) -> str:

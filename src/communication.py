@@ -93,12 +93,20 @@ def communicate():
     settings = read_settings_file_from_JSON(get_unity_persistance_path())
 
     # determine settings based on args or fall back to settings.json
-    depth = args.depth if args.depth is not None else settings.get("depth", 3)
-    use_stockfish = args.use_stockfish if args.use_stockfish is not None else settings.get("use_stockfish", False)
-    skill_level = args.skill_level if args.skill_level is not None else settings.get("skill_level", 2)
-    acpl_val = args.acpl if args.acpl is not None else settings.get("acpl_val", False)
-    # stockfish engine is not initialised by default,
-    # but still needs to be passed to standalone_use()
+    use_default_settings = args.use_default_settings
+
+    if use_default_settings:
+        depth = settings.get("depth", 3)
+        use_stockfish = settings.get("use_stockfish", False)
+        skill_level = settings.get("skill_level", 2)
+        acpl_val = settings.get("acpl_val", False)
+    else:
+        depth = args.depth if args.depth is not None else settings.get("depth", 3)
+        use_stockfish = args.use_stockfish if args.use_stockfish is not None else settings.get("use_stockfish", False)
+        skill_level = args.skill_level if args.skill_level is not None else settings.get("skill_level", 2)
+        acpl_val = args.acpl if args.acpl is not None else settings.get("acpl_val", False)
+
+    # stockfish engine is not initialised by default, but still needs to be passed to standalone_use()
     stockfish_engine = None
 
     board = chess.Board()
@@ -131,7 +139,7 @@ def communicate():
             context.term()
             if use_stockfish:
                 stockfish_engine.quit()
-                exit()
+            exit()
         if san == "GAME_END":
             if use_stockfish:
                 stockfish_engine.close()  # engine is closed and reopened to avoid memory leak
@@ -245,6 +253,8 @@ def standalone_cli_args():
                         help='Use Stockfish engine instead of Cobra.')
     parser.add_argument('--acpl', nargs='?', const=True, default=None, help='Enable ACPL calculation.')
     parser.add_argument('--skill-level', type=int, default=None, help='Skill level for Stockfish engine.')
+    parser.add_argument('--use-default-settings', nargs='?', const=True, default=None,
+                        help='Use Chess.NET`s settings.json file found in the Unity persistence path')
     args, unknown = parser.parse_known_args()
     if '--help' in unknown:
         parser.print_help()
