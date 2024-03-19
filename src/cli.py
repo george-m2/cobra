@@ -23,7 +23,7 @@ def standalone_use(board: chess.Board, depth: int, use_stockfish: bool, acpl_val
         else:
             generated_move = movegen.next_move(depth, board)  # create move, cobra
         end_time = time.time()
-        delta_time = round((end_time - start_time), 2)  # time to make time, rounded to 2dp
+        delta_time = round((end_time - start_time), 2)  # time taken to create the move, rounded to 2dp
         print(f"Move execution time: {delta_time} seconds")
         san = board.san(generated_move)
         board.push_san(san)
@@ -43,13 +43,18 @@ def input_move(board) -> chess.Move:
     Returns:
         chess.Move: The move inputted by the user
     """
-    move = input(f"\nYour move (An example move could be {list(board.legal_moves)[0]}):\n")
-    for legal_move in board.legal_moves:
-        if str(legal_move) == move:
-            return board.parse_san(move)
+    example_move = list(board.legal_moves)[0]
+    move = input(f"\nYour move (An example move could be {example_move}):\n")
+    try:
+        parsed_move = board.parse_san(move)
+        if parsed_move in board.legal_moves:
+            return parsed_move
         else:
             print("Invalid move, try again")
             return input_move(board)
+    except ValueError:
+        print("Invalid move, try again")
+        return input_move(board)
 
 
 def get_ACPL(board, move, acpl_array, stockfish_engine):
@@ -82,17 +87,16 @@ def render_board_with_icons(board: chess.Board) -> str:
         ".": "·"
     }
 
-    # Create an empty board representation with dots
     board_str = ""
-    for square in chess.SQUARES_180:
+    for square in chess.SQUARES_180: # 180 degree rotated board
         piece = board.piece_at(square)
-        if piece:  # If there's a piece at the current square
+        if piece:  # if there's a piece at the current square
             symbol = piece.symbol()
-            board_str += icons.get(symbol, symbol) + " "
+            board_str += icons.get(symbol, symbol) + " " # get the unicode icon for the piece
         else:
-            board_str += icons["."] + " "
+            board_str += icons["."] + " " # empty square
         if chess.square_file(square) == chess.square(7, 0):
-            board_str += "\n"  # Add a newline at the end of each row
+            board_str += "\n"  # newline at the end of each row
 
     print(board_str)
     return board_str
